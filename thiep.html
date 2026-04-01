@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Món Quà Bất Ngờ</title>
+    <style>
+        body { margin: 0; background: #000; font-family: 'Courier New', Courier, monospace; overflow: hidden; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        /* Hiệu ứng chữ chạy (Ending Credit) */
+        #credits-box { position: absolute; width: 100%; text-align: center; animation: scrollUp 20s linear forwards; display: none; }
+        .name-item { font-size: 28px; margin: 20px 0; font-weight: bold; color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        @keyframes scrollUp { 0% { transform: translateY(100vh); } 100% { transform: translateY(-120%); } }
+
+        /* Nút bấm mở thiệp */
+        #btn-open { display: none; padding: 15px 40px; font-size: 20px; background: linear-gradient(45deg, #ff4d6d, #ff758f); color: white; border: none; border-radius: 50px; cursor: pointer; z-index: 100; box-shadow: 0 0 20px rgba(255, 77, 109, 0.8); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Thiệp chúc mừng */
+        #card { display: none; background: rgba(255, 255, 255, 0.95); color: #333; padding: 40px; border-radius: 20px; text-align: left; width: 80%; max-width: 450px; z-index: 100; box-shadow: 0 0 50px rgba(255, 255, 255, 0.3); font-family: 'Segoe UI', sans-serif; }
+        canvas { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 99; }
+        
+        /* Hiệu ứng đánh máy */
+        #wishText { white-space: pre-wrap; display: inline; border-right: 2px solid #333; animation: blink-caret 0.75s step-end infinite; }
+        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #333 } }
+    </style>
+</head>
+<body>
+    <audio id="bgMusic" loop></audio>
+
+    <div id="credits-box">
+        <p style="font-size: 20px; color: #fff;">DANH SÁCH NHẬN QUÀ...</p>
+        <div id="recipientList"></div>
+        <p>✨ ✨ ✨</p>
+    </div>
+
+    <button id="btn-open" onclick="openCard()">Mở Quà Ngay 🎁</button>
+
+    <div id="card">
+        <h1 id="cardTitle" style="color: #ff4d6d; text-align: center;"></h1>
+        <div id="typingContainer">
+            <span id="wishText"></span>
+        </div>
+        <p style="text-align: right; margin-top: 20px;"><b>Trân trọng!</b></p>
+    </div>
+
+    <canvas id="fireworks"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+        // 1. Lấy dữ liệu từ URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const recipient = decodeURIComponent(urlParams.get('r') || '');
+        const title = decodeURIComponent(urlParams.get('t') || '');
+        const content = decodeURIComponent(urlParams.get('c') || '');
+        const music = decodeURIComponent(urlParams.get('m') || '');
+
+        // 2. Điền dữ liệu vào trang
+        const recipientArray = recipient.split(',');
+        recipientArray.forEach(name => {
+            const div = document.createElement('div');
+            div.className = 'name-item';
+            div.innerText = name.trim();
+            document.getElementById('recipientList').appendChild(div);
+        });
+        document.getElementById('cardTitle').innerText = title;
+        document.getElementById('bgMusic').src = music;
+
+        // 3. Hiển thị chữ chạy khi trang load
+        document.getElementById('credits-box').style.display = 'block';
+
+        // 4. Tự động hiện nút sau khi chạy xong (20 giây)
+        const animationDuration = recipientArray.length > 5 ? Math.max(20, recipientArray.length * 3) : 20; // Tăng thời gian nếu danh sách dài
+        document.getElementById('credits-box').style.animationDuration = animationDuration + 's';
+        setTimeout(() => {
+            document.getElementById('credits-box').style.display = 'none';
+            document.getElementById('btn-open').style.display = 'block';
+        }, (animationDuration - 2) * 1000); 
+
+        // 5. Mở thiệp
+        function openCard() {
+            // Phát nhạc
+            const music = document.getElementById('bgMusic');
+            music.play().catch(e => console.log('Music blocked:', e));
+
+            // Hiện thiệp
+            document.getElementById('btn-open').style.display = 'none';
+            document.getElementById('card').style.display = 'block';
+            document.body.style.background = "#fff0f3";
+
+            // Hiệu ứng pháo hoa
+            startFireworks();
+
+            // Hiệu ứng đánh máy
+            typeWriter(content);
+        }
+
+        // --- Hiệu ứng Đánh máy ---
+        let i = 0;
+        function typeWriter(txt) {
+            if (i < txt.length) {
+                document.getElementById("wishText").innerHTML += txt.charAt(i);
+                i++;
+                setTimeout(() => typeWriter(txt), 50); // Tốc độ đánh máy (50ms/chữ)
+            } else {
+                // Xóa hiệu ứng caret nhấp nháy khi đánh xong
+                document.getElementById("wishText").style.borderRight = "none";
+            }
+        }
+
+        // --- Hiệu ứng Pháo hoa ---
+        function startFireworks() {
+            var duration = 15 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+              return Math.random() * (max - min) + min;
+            }
+
+            var interval = setInterval(function() {
+              var timeLeft = animationEnd - Date.now();
+              if (timeLeft <= 0) { return clearInterval(interval); }
+              var particleCount = 50 * (timeLeft / duration);
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+    </script>
+</body>
+</html>
